@@ -5,6 +5,13 @@ from ultralytics import YOLO
 from tracker import Tracker
 
 
+def convert_frame(frame, threshold):
+    """Applies image segmentation to frame"""
+    frame = frame < threshold
+    frame = np.where(frame, 255, 0).astype(np.uint8)
+    return frame
+
+
 def worm_checker(dets, worm_count, n_init, worm_check):
     """
     Checks if all 6 worms have been detected consecutively, then increase the n_init parameter
@@ -41,12 +48,13 @@ def worm_checker(dets, worm_count, n_init, worm_check):
     return worm_count, n_init, worm_check
 
 
-model = YOLO('models/coloured_detection_n.pt')
-image_segmentation = False
+model = YOLO('models/gray_detection.pt')
+image_segmentation = True
 video_path = 'data/videos/mating6.wmv'
+
+output_path = f"results/mating_tracking.mp4"
 if image_segmentation:
     output_path = f"results/mating_gray_tracking.mp4"
-output_path = f"results/mating_tracking.mp4"
 
 # Read video
 cap = cv2.VideoCapture(video_path)
@@ -72,17 +80,44 @@ frame_count = 0
 n_init = 10
 worm_check = True
 if image_segmentation:
+    # Set default parameters for image segmentation algorithm
+    block_size = 101
+    offset = 12
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    threshold = filters.threshold_local(gray_frame, block_size=101, offset=10)
+    # Display result of segmentation algorithm and allow users to modify the parameters if need be
+    while True:
+        worm_threshold = filters.threshold_local(gray_frame, block_size=block_size, offset=offset)
+        # Use different variable, so we don't have to read frame from video at each loop
+        frame2 = convert_frame(gray_frame, worm_threshold)
+        cv2.putText(frame2, 'is the segmentation okay?', (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 1)
+        cv2.imshow('segmented frame', frame2)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        print(f'block_size: {block_size}, offset: {offset}')
+        print("Enter 'is' to increase block size, 'io' to increase offset\n", )
+        input_ = input("Enter 'ds' to decrease block size, 'do' to decrease offset, or 'S' to skip:\n")
+        if input_ == 'ds':
+            block_size -= 10
+        elif input_ == 'do':
+            offset -= 2
+        elif input_ == 'is':
+            block_size += 10
+        elif input_ == 'io':
+            offset += 2
+        else:
+            print('Skipping')
+            break
+
+    # frame = convert_frame(frame, worm_threshold)
+
 while ret:
     frame_count += 1
     if image_segmentation:
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray_frame = gray_frame < threshold
-        gray_frame = np.where(gray_frame, 255, 0).astype(np.uint8)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        frame = convert_frame(frame, worm_threshold)
         # Set all three channels to be identical to the grayscale image
-        gray_frame = np.stack((gray_frame,) * 3, axis=-1)
-        frame = gray_frame
+        frame = np.stack((frame,) * 3, axis=-1)
+
     # get predictions
     results = model(frame)[0]
     # list to store predicted bbox and scores of each worm
