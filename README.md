@@ -1,7 +1,7 @@
 <div id="header" align="center">
   <h1>
-    C-elegan tracker using Yolov8 and DeepSORT
-    <img src="results\worm_tracker.jpg" alt="worm tracker screenshot" width="300" align="center"/>
+    C-elegan tracker using Yolov8 and DeepSORT<p></p><p></p><p></p>
+    <img src="results\worm_tracker.jpg" alt="worm tracker screenshot" width="1000" align="center"/>
   </h1>
 </div>
 
